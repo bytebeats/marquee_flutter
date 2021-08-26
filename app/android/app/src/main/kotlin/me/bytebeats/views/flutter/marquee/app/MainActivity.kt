@@ -1,4 +1,4 @@
-package io.github.bytebeats.app
+package me.bytebeats.views.flutter.marquee.app
 
 import io.flutter.embedding.android.FlutterActivity
 
