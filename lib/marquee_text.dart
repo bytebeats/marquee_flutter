@@ -5,39 +5,39 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class MarqueeText extends StatefulWidget {
-  MarqueeText(
-      {Key? key,
-      required this.text,
-      this.style,
-      this.textScaleFactor,
-      this.textDirection = TextDirection.ltr,
-      this.scrollAxis = Axis.horizontal,
-      this.crossAxisAlignment = CrossAxisAlignment.center,
-      this.blankSpace = 0.0,
-      this.velocity = 50.0,
-      this.startAfter = Duration.zero,
-      this.pauseAfterRoundFinish = Duration.zero,
-      this.showFadingEdgeOnlyWhenScrolling = true,
-      this.fadingEdgeStartFraction = 0.0,
-      this.fadingEdgeEndFraction = 0.0,
-      this.roundCounts,
-      this.paddingAfterText = 0,
-      this.acceleratingDuration = Duration.zero,
-      Curve acceleratingCurve = Curves.decelerate,
-      this.deceleratingDuration = Duration.zero,
-      Curve deceleratingCurve = Curves.decelerate,
-      this.onDone})
-      : assert(!blankSpace.isNaN),
+  MarqueeText({
+    Key? key,
+    required this.text,
+    this.style,
+    this.textScaleFactor,
+    this.textDirection = TextDirection.ltr,
+    this.scrollAxis = Axis.horizontal,
+    this.crossAxisAlignment = CrossAxisAlignment.center,
+    this.blankSpace = 0.0,
+    this.velocity = 50.0,
+    this.startAfter = Duration.zero,
+    this.pauseBetweenRounds = Duration.zero,
+    this.showFadingOnlyWhenScrolling = true,
+    this.fadingStartFraction = 0.0,
+    this.fadingEndFraction = 0.0,
+    this.roundCounts,
+    this.paddingBeforeText = 0,
+    this.acceleratingDuration = Duration.zero,
+    Curve acceleratingCurve = Curves.decelerate,
+    this.deceleratingDuration = Duration.zero,
+    Curve deceleratingCurve = Curves.decelerate,
+    this.onDone,
+  })  : assert(!blankSpace.isNaN),
         assert(blankSpace >= 0, "The blankSpace needs to be positive or zero."),
         assert(blankSpace.isFinite),
         assert(!velocity.isNaN),
         assert(velocity != 0, "The velocity can not be zero."),
         assert(velocity.isFinite),
-        assert(pauseAfterRoundFinish >= Duration.zero,
+        assert(pauseBetweenRounds >= Duration.zero,
             "The pauseAfterRoundFinish can not be negative as time travel is not invented yet."),
-        assert(fadingEdgeStartFraction >= 0 && fadingEdgeStartFraction < 1,
+        assert(fadingStartFraction >= 0 && fadingStartFraction < 1,
             "The fadingEdgeStartFraction value should be [0, 1)"),
-        assert(fadingEdgeEndFraction >= 0 && fadingEdgeEndFraction < 1,
+        assert(fadingEndFraction >= 0 && fadingEndFraction < 1,
             "The fadingEdgeEndFraction value should be [0, 1)"),
         assert(roundCounts == null || roundCounts > 0),
         assert(acceleratingDuration >= Duration.zero,
@@ -47,7 +47,6 @@ class MarqueeText extends StatefulWidget {
         this.acceleratingCurve = _IntegralCurve(acceleratingCurve),
         this.deceleratingCurve = _IntegralCurve(deceleratingCurve),
         super(key: key);
-
   final String text;
   final TextStyle? style;
   final double? textScaleFactor;
@@ -57,12 +56,12 @@ class MarqueeText extends StatefulWidget {
   final double blankSpace;
   final double velocity;
   final Duration startAfter;
-  final Duration pauseAfterRoundFinish;
+  final Duration pauseBetweenRounds;
   final int? roundCounts;
-  final bool showFadingEdgeOnlyWhenScrolling;
-  final double fadingEdgeStartFraction;
-  final double fadingEdgeEndFraction;
-  final double paddingAfterText;
+  final bool showFadingOnlyWhenScrolling;
+  final double fadingStartFraction;
+  final double fadingEndFraction;
+  final double paddingBeforeText;
   final Duration acceleratingDuration;
   final _IntegralCurve acceleratingCurve;
   final Duration deceleratingDuration;
@@ -92,7 +91,7 @@ class _MarqueeTextState extends State<MarqueeText> with SingleTickerProviderStat
 
   bool get _isDone => widget.roundCounts == null ? false : widget.roundCounts == _roundCounter;
 
-  bool get _showFading => !widget.showFadingEdgeOnlyWhenScrolling ? true : !_isOnPause;
+  bool get _showFading => !widget.showFadingOnlyWhenScrolling ? true : !_isOnPause;
 
   @override
   void initState() {
@@ -126,11 +125,11 @@ class _MarqueeTextState extends State<MarqueeText> with SingleTickerProviderStat
     await _decelerate();
     _roundCounter++;
     if (!_isRunning || !mounted) return;
-    if (widget.pauseAfterRoundFinish > Duration.zero) {
+    if (widget.pauseBetweenRounds > Duration.zero) {
       setState(() {
         _isOnPause = true;
       });
-      await Future.delayed(widget.pauseAfterRoundFinish);
+      await Future.delayed(widget.pauseBetweenRounds);
       if (!mounted || _isDone) return;
       setState(() {
         _isOnPause = false;
@@ -139,7 +138,7 @@ class _MarqueeTextState extends State<MarqueeText> with SingleTickerProviderStat
   }
 
   Future<void> _accelerate() async {
-    await _animateTo(_acceleratingTarget, _acceleratingDuration, widget.acceleratingCurve.flipped);
+    await _animateTo(_acceleratingTarget, _acceleratingDuration, widget.acceleratingCurve);
   }
 
   Future<void> _marqueeLinearly() async {
@@ -183,7 +182,7 @@ class _MarqueeTextState extends State<MarqueeText> with SingleTickerProviderStat
         alignment = null;
         break;
     }
-    Widget marquee = ListView.builder(
+    Widget marqueeViews = ListView.builder(
       controller: _controller,
       scrollDirection: widget.scrollAxis,
       reverse: widget.textDirection == TextDirection.rtl,
@@ -204,7 +203,7 @@ class _MarqueeTextState extends State<MarqueeText> with SingleTickerProviderStat
               );
       },
     );
-    return kIsWeb ? marquee : _wrapWithFadingEdgeScrollView(marquee);
+    return kIsWeb ? marqueeViews : _wrapWithFadingEdgeScrollView(marqueeViews);
   }
 
   Widget _buildBlankSpace() {
@@ -216,8 +215,8 @@ class _MarqueeTextState extends State<MarqueeText> with SingleTickerProviderStat
 
   Widget _wrapWithFadingEdgeScrollView(Widget child) {
     return FadingEdgeScrollView.fromScrollView(
-        gradientFractionOnStart: !_showFading ? 0.0 : widget.fadingEdgeStartFraction,
-        gradientFractionOnEnd: !_showFading ? 0.0 : widget.fadingEdgeEndFraction,
+        gradientFractionOnStart: !_showFading ? 0.0 : widget.fadingStartFraction,
+        gradientFractionOnEnd: !_showFading ? 0.0 : widget.fadingEndFraction,
         child: child as ScrollView);
   }
 
@@ -228,7 +227,7 @@ class _MarqueeTextState extends State<MarqueeText> with SingleTickerProviderStat
   }
 
   void _initialize(BuildContext context) {
-    final textWidth = _textWidth(context);
+    final totalDistance = _textWidth(context) + widget.blankSpace;
     final acceleratingDistance = widget.acceleratingCurve.integral *
         widget.velocity *
         _acceleratingDuration.inMilliseconds /
@@ -237,9 +236,11 @@ class _MarqueeTextState extends State<MarqueeText> with SingleTickerProviderStat
         widget.velocity *
         _deceleratingDuration.inMilliseconds /
         1000.0;
-    final linearDistance = (textWidth - acceleratingDistance.abs() - deceleratingDistance.abs()) *
-        (widget.velocity > 0 ? 1 : -1);
-    _startPosition = 2 * textWidth - widget.paddingAfterText;
+    final linearDistance =
+        (totalDistance - acceleratingDistance.abs() - deceleratingDistance.abs()) *
+            (widget.velocity > 0 ? 1 : -1);
+
+    _startPosition = 2 * totalDistance - widget.paddingBeforeText;
     _acceleratingTarget = _startPosition + acceleratingDistance;
     _linearTarget = _acceleratingTarget + linearDistance;
     _deceleratingTarget = _linearTarget + deceleratingDistance;
@@ -250,7 +251,7 @@ class _MarqueeTextState extends State<MarqueeText> with SingleTickerProviderStat
     _linearDuration = _totalDuration - _acceleratingDuration - _deceleratingDuration;
 
     assert(_totalDuration > Duration.zero,
-        "With the given values, the total duration for one round would be negative. This shouldn't happen.");
+        "With the given values, the total duration for one round would be negative. This shouldn't happen unless time travel has been invented.");
     assert(
       _linearDuration! >= Duration.zero,
       "Acceleration and deceleration phase overlap. To fix this, try a combination of these approaches:\n"
